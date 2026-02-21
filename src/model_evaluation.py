@@ -1,21 +1,11 @@
 import json
-from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
-import numpy as np
+import os
 
-def evaluate_model(model, X, y, metrics_path):
-    y_pred = model.predict(X)
+def save_metrics(all_metrics, metrics_path):
 
-    mae = mean_absolute_error(y, y_pred)
-    rmse = np.sqrt(mean_squared_error(y, y_pred))
-    r2 = r2_score(y, y_pred)
-
-    metrics = {
-        "MAE": mae,
-        "RMSE": rmse,
-        "R2": r2
-    }
+    os.makedirs(os.path.dirname(metrics_path), exist_ok=True)
 
     with open(metrics_path, "w") as f:
-        json.dump(metrics, f, indent=4)
+        json.dump(all_metrics, f, indent=4)
 
-    return metrics
+    print("Metrics saved successfully.")

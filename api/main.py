@@ -1,37 +1,38 @@
-import os
-import pickle
-import numpy as np
 from fastapi import FastAPI
 from pydantic import BaseModel
-
-# ==============================
-# Initialize FastAPI App
-# ==============================
+import pickle
+import json
+import os
+import numpy as np
 
 app = FastAPI(
     title="Commodity Price Forecasting API",
-    description="Production-ready ML Model Serving Layer",
-    version="1.0"
+    description="Production-ready MLOps serving layer",
+    version="1.0.0"
 )
 
-# ==============================
-# Load Trained Model
-# ==============================
+# ===============================
+# PATHS
+# ===============================
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+ARTIFACTS_DIR = os.path.join(BASE_DIR, "artifacts")
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-PROJECT_ROOT = os.path.abspath(os.path.join(BASE_DIR, ".."))
-MODEL_PATH = os.path.join(PROJECT_ROOT, "artifacts", "model.pkl")
+MODEL_PATH = os.path.join(ARTIFACTS_DIR, "model.pkl")
+METRICS_PATH = os.path.join(ARTIFACTS_DIR, "metrics.json")
+METADATA_PATH = os.path.join(ARTIFACTS_DIR, "model_metadata.json")
 
-if not os.path.exists(MODEL_PATH):
-    raise FileNotFoundError("Model file not found in artifacts folder.")
+# ===============================
+# LOAD MODEL ON STARTUP
+# ===============================
+def load_model():
+    with open(MODEL_PATH, "rb") as f:
+        return pickle.load(f)
 
-with open(MODEL_PATH, "rb") as f:
-    model = pickle.load(f)
+model = load_model()
 
-# ==============================
-# Request Schema
-# ==============================
-
+# ===============================
+# REQUEST SCHEMA
+# ===============================
 class PredictionRequest(BaseModel):
     Open: float
     High: float
@@ -39,24 +40,51 @@ class PredictionRequest(BaseModel):
     Vol: float
     Prev_Close: float
 
-
-# ==============================
-# Health Check Endpoint
-# ==============================
-
+# ===============================
+# ROOT
+# ===============================
 @app.get("/")
+def root():
+    return {
+        "message": "Commodity Price Forecasting API is running",
+        "status": "active"
+    }
+
+# ===============================
+# HEALTH CHECK
+# ===============================
+@app.get("/health")
 def health_check():
-    return {"status": "API is running successfully"}
+    return {"status": "healthy"}
 
+# ===============================
+# MODEL INFO
+# ===============================
+@app.get("/model-info")
+def model_info():
+    if os.path.exists(METADATA_PATH):
+        with open(METADATA_PATH, "r") as f:
+            metadata = json.load(f)
+        return metadata
+    return {"message": "Metadata not found"}
 
-# ==============================
-# Prediction Endpoint
-# ==============================
+# ===============================
+# METRICS
+# ===============================
+@app.get("/metrics")
+def get_metrics():
+    if os.path.exists(METRICS_PATH):
+        with open(METRICS_PATH, "r") as f:
+            metrics = json.load(f)
+        return metrics
+    return {"message": "Metrics not found"}
 
+# ===============================
+# PREDICT
+# ===============================
 @app.post("/predict")
 def predict(data: PredictionRequest):
-
-    input_array = np.array([[ 
+    input_data = np.array([[ 
         data.Open,
         data.High,
         data.Low,
@@ -64,42 +92,8 @@ def predict(data: PredictionRequest):
         data.Prev_Close
     ]])
 
-    prediction = model.predict(input_array)[0]
+    prediction = model.predict(input_data)
 
     return {
-        "predicted_price": round(float(prediction), 2)
+        "predicted_price": float(prediction[0])
     }
-# ==============================
-# Metrics Endpoint
-# ==============================
-
-import json
-
-METRICS_PATH = os.path.join(PROJECT_ROOT, "artifacts", "metrics.json")
-
-@app.get("/metrics")
-def get_metrics():
-
-    if not os.path.exists(METRICS_PATH):
-        return {"error": "Metrics file not found."}
-
-    with open(METRICS_PATH, "r") as f:
-        metrics = json.load(f)
-
-    return metrics
-# ==============================
-# Model Info Endpoint
-# ==============================
-
-METADATA_PATH = os.path.join(PROJECT_ROOT, "artifacts", "model_metadata.json")
-
-@app.get("/model-info")
-def get_model_info():
-
-    if not os.path.exists(METADATA_PATH):
-        return {"error": "Model metadata not found."}
-
-    with open(METADATA_PATH, "r") as f:
-        metadata = json.load(f)
-
-    return metadata

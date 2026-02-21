@@ -1,0 +1,15 @@
+data:
+  target_column: Price
+  feature_columns:
+    - Open
+    - High
+    - Low
+    - Vol.
+    - Prev_Close
+
+models:
+  - LinearRegression
+  - RandomForest
+  - GradientBoosting
+
+selection_metric: RMSE
