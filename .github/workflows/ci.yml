@@ -28,6 +28,7 @@ jobs:
 
     - name: Run Training Pipeline
       run: |
+        ls -R
         python train_pipeline.py
 
     - name: Build Docker Image
